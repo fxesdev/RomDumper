@@ -54,7 +54,6 @@ int main(int argc, char **argv) {
     uint64_t addr;
     MEMORY_BASIC_INFORMATION blockInfo;
     for(addr = 0; VirtualQueryEx(proc, (LPCVOID)addr, &blockInfo, sizeof(blockInfo)) != 0; addr += blockInfo.RegionSize) {
-        //printf("ADDR: %08llx SIZE: %08lx STATE: %08lx TYPE: %08lx PROTECT: %08lx\n", addr, blockInfo.RegionSize, blockInfo.State, blockInfo.Type, blockInfo.Protect & PAGE_GUARD);
         // Check that the memory is commited (ie actually in use) and that's it's private
         if (blockInfo.State == MEM_COMMIT && (blockInfo.Protect & PAGE_GUARD) == 0) {
             // Copy it into our address space
