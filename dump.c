@@ -47,14 +47,22 @@ HMODULE getModule(HANDLE proc, char *name) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 2) {
-        printf("Usage: %s <Emulator PID>", argv[0]);
+    if (argc != 3) {
+        printf("Usage: %s <target> <Emulator PID>", argv[0]);
         return -1;
+    }
+
+    // Check what we want to dump
+    bool dump_rom = false;
+    bool dump_ram = false;
+    for(char *c = argv[1]; *c != '\0'; c++) {
+        if (*c == 'o') dump_rom = true;
+        if (*c == 'a') dump_ram = true;
     }
 
     // Get handle on the emulator
     uint32_t pid;
-    sscanf(argv[1], "%" SCNd32, &pid);
+    sscanf(argv[2], "%" SCNd32, &pid);
 
     HANDLE proc = OpenProcess(
         PROCESS_VM_READ | PROCESS_QUERY_INFORMATION,
@@ -160,17 +168,22 @@ int main(int argc, char **argv) {
     sprintf(ram_filename, "%s.ram.bin", rom_name);
 
     // Write rom dump to file
-    FILE *f;
-    f = fopen(rom_filename, "wb");
-    fwrite(rom_buf, sizeof(uint8_t), rom_size, f);
-    fclose(f);
-    printf("Wrote ROM dump to file\n");
-
+    if (dump_rom) {
+        FILE *f;
+        f = fopen(rom_filename, "wb");
+        fwrite(rom_buf, sizeof(uint8_t), rom_size, f);
+        fclose(f);
+        printf("Wrote ROM dump to file\n");
+    }
+    
     // Write ram dump to file
-    f = fopen(ram_filename, "wb");
-    fwrite(ram_buf, sizeof(uint8_t), ram->buf_size, f);
-    fclose(f);
-    printf("Wrote RAM dump to file\n");
+    if (dump_ram) {
+        FILE *f = fopen(ram_filename, "wb");
+        fwrite(ram_buf, sizeof(uint8_t), ram->buf_size, f);
+        fclose(f);
+        printf("Wrote RAM dump to file\n");
+    }
+    
 
     printf("Done!\n");
 
