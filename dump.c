@@ -25,9 +25,12 @@ struct memory_region {
     uint8_t  unk2[4];
 };
 
+static const uint8_t pattern_csimu8[] = {0x57, 0x44, 0x54, 0x49, 0x4E, 0x54, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+static const uint8_t pattern_romname[] = {0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
+
 int main(int argc, char **argv) {
-    if (argc < 3) {
-        printf("Usage: %s <Emulator PID> <Rom Dump> [Ram Dump]", argv[0]);
+    if (argc != 2) {
+        printf("Usage: %s <Emulator PID>", argv[0]);
         return -1;
     }
 
@@ -46,9 +49,6 @@ int main(int argc, char **argv) {
     }
 
     // Scan for pattern to find CSimU8core instance
-    // 57 44 54 49 4E 54 00 00 00 00 00 00 00 00 00 00 00 00
-    static const uint8_t pattern[] = {0x57, 0x44, 0x54, 0x49, 0x4E, 0x54, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
     uint64_t *matches = NULL;
     int numMatches = 0;
     uint64_t addr;
@@ -67,10 +67,10 @@ int main(int argc, char **argv) {
 
             // Search for pattern
             int pIdx = 0, mIdx = 0;
-            while(mIdx <= blockInfo.RegionSize) {
-                if (buffer[mIdx] == pattern[pIdx]) {
+            while(mIdx < blockInfo.RegionSize) {
+                if (buffer[mIdx] == pattern_csimu8[pIdx]) {
                     pIdx++;
-                } else if (buffer[mIdx] == pattern[0]) {
+                } else if (buffer[mIdx] == pattern_csimu8[0]) {
                     pIdx = 1;
                 } else {
                     pIdx = 0;
@@ -78,11 +78,11 @@ int main(int argc, char **argv) {
                 mIdx++;
 
                 // Check if we're at the end of the pattern
-                if (pIdx == (sizeof(pattern)/sizeof(uint8_t))) {
-                    printf("Found CSimU8core instance @ 0x%llx\n", addr + mIdx - sizeof(pattern)/sizeof(uint8_t));
+                if (pIdx == (sizeof(pattern_csimu8)/sizeof(uint8_t))) {
+                    printf("Found CSimU8core instance @ 0x%llx\n", addr + mIdx - sizeof(pattern_csimu8)/sizeof(uint8_t));
                     numMatches++;
                     matches = realloc(matches, sizeof(uint64_t) * numMatches);
-                    matches[numMatches - 1] = addr + mIdx - sizeof(pattern)/sizeof(uint8_t);
+                    matches[numMatches - 1] = addr + mIdx - sizeof(pattern_csimu8)/sizeof(uint8_t);
                     pIdx = 0;
                 }
             }
@@ -137,20 +137,54 @@ int main(int argc, char **argv) {
             return -1;
         }
 
+        // Try and detect ROM name
+        char rom_name[8] = "dump";
+        int pIdx = 0, mIdx = 0;
+        while(mIdx < rom_size) {
+            if (rom_buf[mIdx] == pattern_romname[pIdx]) {
+                pIdx++;
+            } else if (rom_buf[mIdx] == pattern_romname[0]) {
+                pIdx = 1;
+            } else {
+                pIdx = 0;
+            }
+            mIdx++;
+
+            // Check if we're at the end of the pattern
+            if (pIdx == (sizeof(pattern_romname)/sizeof(uint8_t))) {
+                // Find 0x20 after name, then extract it
+                while(rom_buf[mIdx] != 0x20) mIdx++;
+                mIdx -= 7;
+                memcpy(rom_name, rom_buf + mIdx, 7);
+                rom_buf[7] = 0;
+
+                printf("Found ROM name: %s\n", rom_name);
+
+                // Truncate the ROM as the name is found at the end
+                uint32_t new_size = (mIdx + 0xFFFF) & ~0xFFFF;
+                printf("Truncated ROM to 0x%08lx from 0x%08lx\n", new_size, rom_size);
+                rom_size = new_size;
+            }
+        }
+
+        // Generate filenames
+        char rom_filename[16];
+        sprintf(rom_filename, "%s.rom.bin", rom_name);
+        char ram_filename[16];
+        sprintf(ram_filename, "%s.ram.bin", rom_name);
+
         // Write rom dump to file
         FILE *f;
-        f = fopen(argv[2], "wb");
+        f = fopen(rom_filename, "wb");
         fwrite(rom_buf, sizeof(uint8_t), rom_size, f);
         fclose(f);
         printf("Wrote ROM dump to file\n");
 
         // Write ram dump to file
-        if (argc >= 4) {
-            f = fopen(argv[3], "wb");
-            fwrite(ram_buf, sizeof(uint8_t), ram->buf_size, f);
-            fclose(f);
-            printf("Wrote RAM dump to file\n");
-        }
+        f = fopen(ram_filename, "wb");
+        fwrite(ram_buf, sizeof(uint8_t), ram->buf_size, f);
+        fclose(f);
+        printf("Wrote RAM dump to file\n");
     } else {
         printf("Couldn't find pattern\n");
     }
