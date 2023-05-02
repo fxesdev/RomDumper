@@ -26,25 +26,6 @@ struct memory_region {
     uint8_t  unk2[4];
 };
 
-struct image_directory {
-    uint32_t rvaddr;
-    uint32_t size;
-};
-
-struct export_directory_table {
-    uint32_t flags;
-    uint32_t timestamp;
-    uint16_t major_version;
-    uint16_t minor_version;
-    uint32_t name_rva;
-    uint32_t ordinal_base;
-    uint32_t address_table_entries;
-    uint32_t name_pointer_entries;
-    uint32_t address_table_rva;
-    uint32_t name_table_rva;
-    uint32_t ordinal_table_rva;
-};
-
 static const uint8_t pattern_csimu8[] = {0x57, 0x44, 0x54, 0x49, 0x4E, 0x54, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static const uint8_t pattern_romname[] = {0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
 
