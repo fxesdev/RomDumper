@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
             while(rom_buf[mIdx] != 0x20) mIdx++;
             mIdx -= 7;
             memcpy(rom_name, rom_buf + mIdx, 7);
-            rom_buf[7] = 0;
+            rom_name[7] = 0;
 
             printf("Found ROM name: %s\n", rom_name);
 
